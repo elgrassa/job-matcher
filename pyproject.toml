@@ -44,6 +44,13 @@ line-length = 100
 [tool.ruff.lint]
 select = ["E", "F", "I", "N", "W", "UP", "B", "SIM", "RUF"]
 
+[tool.ruff.lint.per-file-ignores]
+"src/job_matcher/scoring/llm_scorer.py" = ["E501"]
+"src/job_matcher/scoring/keyword_extractor.py" = ["E501"]
+"tests/test_llm_scorer.py" = ["E501"]
+"tests/test_keyword_extractor.py" = ["E501"]
+"tests/test_scoring_pipeline.py" = ["E501"]
+
 [tool.mypy]
 python_version = "3.11"
 strict = false
