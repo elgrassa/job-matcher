@@ -52,11 +52,15 @@ platforms:
     details_actor_id: "stealth_mode/justjoin-jobs-details-scraper"
     default_input:
       categories:
+        # User's tracks
         - "testing"
         - "devops"
         - "ai"
         - "java"
         - "python"
+        # Wife's tracks
+        - "ux"
+        - "graphic-design"
       experience_levels:
         - "junior"    # AI roles — user has MealMaster + AI projects
         - "mid"       # AI roles — applied AI (agents, RAG, eval)
