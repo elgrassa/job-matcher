@@ -15,6 +15,8 @@ scoring:
     min_daily_rate_eur: 320
     min_hourly_rate_eur: 40
 
+    reject_hybrid: true
+
     eu_citizenship_keywords:
       - "eu citizenship required"
       - "must be eu citizen"
@@ -22,6 +24,20 @@ scoring:
       - "eu nationals only"
       - "european union citizenship required"
       - "valid eu work permit required"
+
+    us_work_authorization_keywords:
+      - "must be authorized to work in the united states"
+      - "must be authorized to work in the us"
+      - "us work authorization required"
+      - "must reside in the united states"
+      - "united states only"
+      - "us citizens only"
+      - "us-based only"
+
+    us_location_keywords:
+      - "united states"
+      - ", us"
+      - "usa"
 
     onsite_compatible_cities:
       - "wroclaw"
