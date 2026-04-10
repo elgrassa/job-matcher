@@ -1,0 +1,75 @@
+scoring:
+  llm_model: "claude-haiku-4-5-20251001"
+  max_tokens_per_call: 500
+  concurrent_llm_calls: 5
+
+  weights:
+    keyword: 0.35
+    semantic: 0.65
+
+  warning:
+    score_delta_threshold: 0.12
+    keyword_delta_threshold: 0.25
+
+  hard_filters:
+    min_daily_rate_eur: 320
+    min_hourly_rate_eur: 40
+
+    eu_citizenship_keywords:
+      - "eu citizenship required"
+      - "must be eu citizen"
+      - "must hold eu passport"
+      - "eu nationals only"
+      - "european union citizenship required"
+      - "valid eu work permit required"
+
+    onsite_compatible_cities:
+      - "wroclaw"
+      - "wrocław"
+      - "remote"
+
+cvs:
+  default: "senior_sdet"
+
+  versions:
+    - id: "senior_sdet"
+      name: "Senior SDET / QA Architect"
+      file: "cvs/senior_sdet.md"
+      description: "Default positioning. 15 YoE SDET with CI/CD, Java, automation frameworks."
+      enabled: true
+
+    - id: "ai_qa_engineer"
+      name: "AI QA / LLM Evaluation Engineer"
+      file: "cvs/ai_qa_engineer.md"
+      description: "Transition target. RAG, DeepEval/RAGAS, Promptfoo, LLM evaluation."
+      enabled: true
+
+    - id: "devsecops_appsec"
+      name: "DevSecOps / AppSec Engineer"
+      file: "cvs/devsecops_appsec.md"
+      description: "Security-hardening angle. SonarQube, CodeQL, Fortify, ISO 27001, PR-level gates."
+      enabled: true
+
+    - id: "java_backend_sdet"
+      name: "Java Backend Engineer / SDET"
+      file: "cvs/java_backend_sdet.md"
+      description: "Pure Java backend with SDET depth. Card network + UBS framing."
+      enabled: true
+
+    - id: "performance_engineer"
+      name: "Performance Engineer"
+      file: "cvs/performance_engineer.md"
+      description: "Gatling/JMeter/k6, LoadRunner->Gatling 8.5x migration, observability (AppDynamics, Grafana)."
+      enabled: true
+
+    - id: "platform_engineer"
+      name: "Platform / Infrastructure Engineer"
+      file: "cvs/platform_engineer.md"
+      description: "Kubernetes, Docker, cloud infra, CI/CD platform ownership. Noumena 25+ projects infra reuse."
+      enabled: true
+
+    - id: "qa_lead_manager"
+      name: "QA Lead / Engineering Manager"
+      file: "cvs/qa_lead_manager.md"
+      description: "People-lead framing. Wirex 12-person QA org, UBS hiring programs, Solve.Care HIPAA delivery."
+      enabled: true

@@ -1,0 +1,64 @@
+platforms:
+  linkedin:
+    enabled: true
+    actor_id: "harvestapi/linkedin-job-search"
+    default_input:
+      titles:
+        - "Senior SDET"
+        - "Senior QA Automation Engineer"
+        - "QA Architect"
+        - "AI QA Engineer"
+        - "LLM Evaluation Engineer"
+        - "DevSecOps Engineer"
+        - "Senior Performance Engineer"
+        - "Senior Java Engineer"
+        - "Platform Engineer"
+        - "Engineering Manager QA"
+      locations:
+        - "Poland"
+        - "Germany"
+        - "Switzerland"
+        - "Netherlands"
+        - "Remote"
+      work_type:
+        - "Remote"
+        - "Hybrid"
+      posted_within_days: 3
+      max_results: 150
+
+  justjoin:
+    enabled: true
+    search_actor_id: "stealth_mode/justjoin-jobs-search-scraper"
+    details_actor_id: "stealth_mode/justjoin-jobs-details-scraper"
+    default_input:
+      categories:
+        - "testing"
+        - "devops"
+        - "ai"
+        - "java"
+        - "python"
+      experience_levels:
+        - "senior"
+        - "expert"
+      employment_types:
+        - "b2b"
+      remote_only: false
+      locations:
+        - "Wrocław"
+        - "Warsaw"
+        - "Kraków"
+        - "Remote"
+      max_results: 150
+
+  nofluffjobs:
+    enabled: true
+    actor_id: "getdataforme/nofluffjobs-profile-scraper"
+    default_input:
+      search_terms:
+        - "sdet"
+        - "senior automation"
+        - "devsecops"
+        - "llm engineer"
+        - "performance engineer"
+        - "platform engineer"
+      max_results: 150

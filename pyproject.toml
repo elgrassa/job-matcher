@@ -1,0 +1,55 @@
+[build-system]
+requires = ["setuptools>=68.0", "setuptools-scm>=8.0"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "job-matcher"
+version = "0.1.0"
+description = "CLI tool for automated job search: scrape, score against CVs, track applications"
+requires-python = ">=3.11,<3.14"
+dependencies = [
+    "anthropic>=0.40.0,<1.0.0",
+    "apify-client>=1.7.0,<2.0.0",
+    "typer>=0.12.0,<1.0.0",
+    "rich>=13.7.0,<14.0.0",
+    "pydantic>=2.7.0,<3.0.0",
+    "pydantic-settings>=2.3.0,<3.0.0",
+    "filelock>=3.15.0,<4.0.0",
+    "python-dotenv>=1.0.0,<2.0.0",
+    "pyyaml>=6.0.0,<7.0.0",
+    "httpx>=0.27.0,<1.0.0",
+    "tenacity>=8.3.0,<9.0.0",
+]
+
+[project.optional-dependencies]
+dev = [
+    "pytest>=8.2.0,<9.0.0",
+    "pytest-asyncio>=0.23.0,<1.0.0",
+    "pytest-mock>=3.14.0,<4.0.0",
+    "ruff>=0.5.0,<1.0.0",
+    "mypy>=1.10.0,<2.0.0",
+]
+
+[project.scripts]
+job-matcher = "job_matcher.cli:app"
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[tool.ruff]
+target-version = "py311"
+line-length = 100
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "N", "W", "UP", "B", "SIM", "RUF"]
+
+[tool.mypy]
+python_version = "3.11"
+strict = false
+warn_return_any = true
+warn_unused_configs = true
+disallow_untyped_defs = false
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+asyncio_mode = "auto"
