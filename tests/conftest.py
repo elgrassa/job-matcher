@@ -5,6 +5,8 @@ from types import SimpleNamespace
 
 import pytest
 
+from job_matcher.models import CvVersion, Job
+
 FIXED_TIMESTAMP = "2026-04-10T10:00:00+00:00"
 
 _DEFAULT_RESPONSE = (
@@ -58,6 +60,18 @@ def sample_cv() -> dict:
         "loaded_at": FIXED_TIMESTAMP,
         "enabled": True,
     }
+
+
+@pytest.fixture
+def sample_job_model(sample_job: dict) -> Job:
+    """A Job model instance for testing."""
+    return Job(**sample_job)
+
+
+@pytest.fixture
+def sample_cv_model(sample_cv: dict) -> CvVersion:
+    """A CvVersion model instance for testing."""
+    return CvVersion(**sample_cv)
 
 
 @pytest.fixture
