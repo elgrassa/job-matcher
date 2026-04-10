@@ -92,10 +92,12 @@ class TestOnsiteLocation:
         assert result.triggered is True
         assert result.reason == "onsite_in_berlin"
 
-    def test_onsite_with_none_location_does_not_trigger(self):
+    def test_onsite_with_none_location_triggers(self):
+        # Cannot verify compatibility — safer to reject unknown onsite locations
         job = _job(remote_type="onsite", location=None)
         result = check_hard_filters(job, _config())
-        assert result.triggered is False
+        assert result.triggered is True
+        assert result.reason == "onsite_unknown_location"
 
 
 class TestHybridRejection:

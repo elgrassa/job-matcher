@@ -3,6 +3,8 @@ data/
 
 # Environment
 .env
+.env.local
+.env.*.local
 .venv/
 
 # Python
@@ -20,6 +22,9 @@ cvs/*.md
 .pytest_cache/
 .mypy_cache/
 .ruff_cache/
+
+# Encrypted cache
+data/.cache/
 
 # OS
 .DS_Store

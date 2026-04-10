@@ -1,15 +1,30 @@
 """Async Claude Haiku semantic scoring."""
 
-import asyncio
 import json
 import logging
 
+import anthropic
 from pydantic import BaseModel
+from tenacity import (
+    retry,
+    retry_if_exception_type,
+    stop_after_attempt,
+    wait_exponential,
+)
 
 from job_matcher.cost_tracker import CostTracker
 from job_matcher.models import CvVersion, Job
 
 logger = logging.getLogger(__name__)
+
+_LLM_RETRY = retry(
+    retry=retry_if_exception_type(
+        (anthropic.RateLimitError, anthropic.InternalServerError)
+    ),
+    stop=stop_after_attempt(3),
+    wait=wait_exponential(multiplier=1, min=2, max=60),
+    reraise=True,
+)
 
 
 class LlmScoreResult(BaseModel):
@@ -106,6 +121,19 @@ class LlmScorer:
         self._model = model
         self._cost_tracker = cost_tracker
 
+    async def _call_llm(self, prompt: str):
+        """Call Anthropic API with tenacity retry on rate limits / 5xx."""
+
+        @_LLM_RETRY
+        async def _inner():
+            return await self._client.messages.create(
+                model=self._model,
+                max_tokens=500,
+                messages=[{"role": "user", "content": prompt}],
+            )
+
+        return await _inner()
+
     async def score_one(
         self,
         job: Job,
@@ -116,20 +144,7 @@ class LlmScorer:
 
         for attempt in range(2):
             try:
-                messages = [{"role": "user", "content": prompt}]
-                if attempt == 1:
-                    messages.append(
-                        {
-                            "role": "user",
-                            "content": "Your previous response was not valid JSON. "
-                            "Respond with ONLY the JSON object, no other text.",
-                        }
-                    )
-                response = await self._client.messages.create(
-                    model=self._model,
-                    max_tokens=500,
-                    messages=messages,
-                )
+                response = await self._call_llm(prompt)
                 text = response.content[0].text
                 usage = response.usage
                 result = parse_scoring_response(text)
@@ -164,17 +179,3 @@ class LlmScorer:
         # Unreachable but satisfies type checker
         raise RuntimeError("Unreachable")
 
-    async def score_many(
-        self,
-        pairs: list[tuple[Job, CvVersion, list[str]]],
-        semaphore: asyncio.Semaphore,
-    ) -> list[LlmScoreResult]:
-        async def _score_with_sem(
-            job: Job, cv: CvVersion, kws: list[str]
-        ) -> LlmScoreResult:
-            async with semaphore:
-                return await self.score_one(job, cv, kws)
-
-        return list(
-            await asyncio.gather(*[_score_with_sem(j, c, k) for j, c, k in pairs])
-        )

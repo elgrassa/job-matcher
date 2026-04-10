@@ -19,6 +19,13 @@ from job_matcher.storage import keywords_store, scores_store
 
 logger = logging.getLogger(__name__)
 
+def _score_key(s):
+    return (s.job_id, s.cv_id)
+
+
+def _kw_key(k):
+    return k.job_id
+
 
 class ScoringRunSummary(BaseModel):
     jobs_processed: int
@@ -100,7 +107,7 @@ class ScoringPipeline:
                         zero_score = self._make_filtered_score(
                             job, cv, filter_result.reason or "unknown_filter"
                         )
-                        scores_store.upsert(zero_score, lambda s: (s.job_id, s.cv_id))
+                        scores_store.upsert(zero_score, _score_key)
                         pairs_skipped_filtered += 1
                 continue
 
@@ -110,7 +117,7 @@ class ScoringPipeline:
                 job.description.encode("utf-8")
             ).hexdigest():
                 kw_entry = await self._extractor.extract(job)
-                keywords_store.upsert(kw_entry, lambda k: k.job_id)
+                keywords_store.upsert(kw_entry, _kw_key)
                 existing_keywords[job.id] = kw_entry
 
             # Score each CV
@@ -154,7 +161,7 @@ class ScoringPipeline:
                     cv_content_hash=cv.content_hash,
                     jd_keyword_hash=kw_hash,
                 )
-                scores_store.upsert(match_score, lambda s: (s.job_id, s.cv_id))
+                scores_store.upsert(match_score, _score_key)
                 pairs_scored += 1
 
             if max_total_pairs is not None and pairs_scored >= max_total_pairs:

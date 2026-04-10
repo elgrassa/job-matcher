@@ -48,7 +48,11 @@ def load_cv_file(entry: CvRegistryEntry) -> CvVersion:
     """Read file, compute hash, return CvVersion instance."""
     from datetime import UTC, datetime
 
-    file_path = PROJECT_ROOT / entry.file
+    file_path = (PROJECT_ROOT / entry.file).resolve()
+    if not file_path.is_relative_to(PROJECT_ROOT.resolve()):
+        raise CvLoadError(
+            f"CV file path escapes project root: {entry.file}"
+        )
     content = _read_file_text(file_path)
     content_hash = compute_content_hash(content)
     return CvVersion(

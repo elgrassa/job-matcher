@@ -18,6 +18,8 @@ CVS_DIR: Path = PROJECT_ROOT / "cvs"
 CONFIG_DIR: Path = PROJECT_ROOT / "config"
 LOCK_DIR: Path = DATA_DIR / ".locks"
 
+CACHE_DIR: Path = DATA_DIR / ".cache"
+
 CURRENT_SCHEMA_VERSION: int = 1
 
 JOBS_FILE: Path = DATA_DIR / "jobs.json"

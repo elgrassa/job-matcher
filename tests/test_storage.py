@@ -438,3 +438,17 @@ class TestRealModelRoundtrip:
         # Write path: strict, refuses to proceed
         with pytest.raises(StorageError, match="Corrupt entity"):
             store.upsert(SimpleItem(id="new", name="New"), _key)
+
+
+class TestFilePermissions:
+    def test_data_files_are_owner_only(self, tmp_path: Path):
+        import os
+
+        lock_dir = tmp_path / "locks"
+        lock_dir.mkdir()
+        store = JsonStore(
+            file_path=tmp_path / "secure.json", model=SimpleItem, lock_dir=lock_dir
+        )
+        store.upsert(SimpleItem(id="a", name="Test"), _key)
+        mode = oct(os.stat(tmp_path / "secure.json").st_mode & 0o777)
+        assert mode == "0o600"

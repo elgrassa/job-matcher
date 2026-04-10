@@ -215,6 +215,27 @@ class Application(BaseModel):
     status_history: list[dict[str, Any]] = Field(default_factory=list)
 
 
+class ScrapeRun(BaseModel):
+    """Audit trail for user-initiated scrape runs."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    id: str
+    initiated_at: datetime
+    initiated_by: Literal["user_cli"] = "user_cli"
+    platform: Literal["linkedin", "justjoin", "nofluffjobs"]
+    jobs_fetched: int = Field(ge=0)
+    cache_hit: bool = False
+    duration_seconds: float = Field(ge=0.0)
+
+    @field_validator("initiated_at")
+    @classmethod
+    def require_utc_initiated(cls, v: datetime) -> datetime:
+        if v.tzinfo is None:
+            raise ValueError("datetime must be timezone-aware")
+        return v.astimezone(UTC)
+
+
 class CostLedgerEntry(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
