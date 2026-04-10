@@ -87,7 +87,7 @@ class PlatformsConfig(BaseModel):
     nofluffjobs: PlatformConfig
 
 
-def _read_yaml(path: Path) -> dict:
+def _read_yaml(path: Path) -> dict[str, Any]:
     if not path.exists():
         raise ConfigFileNotFoundError(f"Config file not found: {path}")
     with open(path, encoding="utf-8") as f:

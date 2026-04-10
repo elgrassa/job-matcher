@@ -393,3 +393,62 @@ class TestJobRoundtrip:
         restored = MatchScore.model_validate(dumped)
         assert restored.keyword_score == score.keyword_score
         assert restored.semantic_score == score.semantic_score
+
+
+class TestJobIdValidation:
+    def test_valid_hex_id(self):
+        job = Job(**_job(id="a3f7c2b8e1d94f56"))
+        assert job.id == "a3f7c2b8e1d94f56"
+
+    def test_rejects_non_hex(self):
+        with pytest.raises(ValidationError, match="16 lowercase hex"):
+            Job(**_job(id="not-a-valid-id!!"))
+
+    def test_rejects_wrong_length(self):
+        with pytest.raises(ValidationError, match="16 lowercase hex"):
+            Job(**_job(id="abc"))
+
+    def test_rejects_uppercase(self):
+        with pytest.raises(ValidationError, match="16 lowercase hex"):
+            Job(**_job(id="A3F7C2B8E1D94F56"))
+
+
+class TestMatchScoreKeywordConsistency:
+    def test_consistent_keywords_ok(self):
+        score = MatchScore(
+            job_id="a", cv_id="b",
+            keyword_score=0.5, semantic_score=0.5, final_score=0.5,
+            keywords_required=["java", "python"],
+            keywords_matched=["java"],
+            keywords_missing=["python"],
+            reasoning="test", green_flags=[], red_flags=[],
+            llm_model_used="test", hard_filter_triggered=None,
+            scored_at=TS, cv_content_hash="abc", jd_keyword_hash="def",
+        )
+        assert score.keywords_matched == ["java"]
+
+    def test_extra_in_matched_rejected(self):
+        with pytest.raises(ValidationError, match=r"matched.*missing.*required"):
+            MatchScore(
+                job_id="a", cv_id="b",
+                keyword_score=0.5, semantic_score=0.5, final_score=0.5,
+                keywords_required=["java"],
+                keywords_matched=["java", "python"],
+                keywords_missing=[],
+                reasoning="test", green_flags=[], red_flags=[],
+                llm_model_used="test", hard_filter_triggered=None,
+                scored_at=TS, cv_content_hash="abc", jd_keyword_hash="def",
+            )
+
+    def test_keyword_in_both_matched_and_missing_rejected(self):
+        with pytest.raises(ValidationError, match="both matched and missing"):
+            MatchScore(
+                job_id="a", cv_id="b",
+                keyword_score=0.5, semantic_score=0.5, final_score=0.5,
+                keywords_required=["java"],
+                keywords_matched=["java"],
+                keywords_missing=["java"],
+                reasoning="test", green_flags=[], red_flags=[],
+                llm_model_used="test", hard_filter_triggered=None,
+                scored_at=TS, cv_content_hash="abc", jd_keyword_hash="def",
+            )

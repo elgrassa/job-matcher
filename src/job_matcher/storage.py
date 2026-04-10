@@ -2,6 +2,7 @@
 
 import contextlib
 import json
+import logging
 import os
 import tempfile
 from collections.abc import Callable, Hashable
@@ -10,7 +11,7 @@ from pathlib import Path
 from typing import Any, Generic, TypeVar
 
 from filelock import FileLock, Timeout
-from pydantic import BaseModel
+from pydantic import BaseModel, ValidationError
 
 from job_matcher.constants import (
     APPLICATIONS_FILE,
@@ -24,6 +25,8 @@ from job_matcher.constants import (
     LOCK_DIR,
     MATCH_SCORES_FILE,
 )
+
+logger = logging.getLogger(__name__)
 
 T = TypeVar("T", bound=BaseModel)
 
@@ -87,10 +90,11 @@ class JsonStore(Generic[T]):
         self._model = model
         self._schema_version = schema_version
         self._timeout = timeout
+        self._lock_dir = lock_dir
         self._lock_path = lock_dir / f"{file_path.stem}.lock"
-        lock_dir.mkdir(parents=True, exist_ok=True)
 
     def _acquire_lock(self) -> FileLock:
+        self._lock_dir.mkdir(parents=True, exist_ok=True)
         lock = FileLock(self._lock_path, timeout=self._timeout)
         try:
             lock.acquire()
@@ -140,11 +144,20 @@ class JsonStore(Generic[T]):
 
     def _write_raw(self, data: dict[str, Any]) -> None:
         data["updated_at"] = datetime.now(UTC).isoformat()
-        content = json.dumps(data, indent=2, ensure_ascii=False, default=str)
+        content = json.dumps(data, indent=2, ensure_ascii=False)
         _atomic_write(self._file_path, content)
 
     def _deserialize(self, raw_entities: list[dict[str, Any]]) -> list[T]:
-        return [self._model.model_validate(raw) for raw in raw_entities]
+        items: list[T] = []
+        for i, raw in enumerate(raw_entities):
+            try:
+                items.append(self._model.model_validate(raw))
+            except ValidationError as e:
+                logger.warning(
+                    "Skipping corrupt entity at index %d in %s: %s",
+                    i, self._file_path, e,
+                )
+        return items
 
     def _serialize(self, items: list[T]) -> list[dict[str, Any]]:
         return [item.model_dump(mode="json") for item in items]

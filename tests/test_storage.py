@@ -304,6 +304,28 @@ class TestDeleteMultiple:
         assert store.all()[0].id == "c"
 
 
+class TestCorruptEntityResilience:
+    def test_skips_bad_entity_returns_good_ones(self, tmp_path: Path):
+        lock_dir = tmp_path / "locks"
+        lock_dir.mkdir()
+        file_path = tmp_path / "test.json"
+        data = {
+            "schema_version": 1,
+            "updated_at": "2026-01-01T00:00:00+00:00",
+            "entities": [
+                {"id": "a", "name": "Good A", "value": 0},
+                {"id": 12345, "name": None},  # bad: id should be str
+                {"id": "c", "name": "Good C", "value": 2},
+            ],
+        }
+        file_path.write_text(json.dumps(data))
+        store = JsonStore(file_path=file_path, model=SimpleItem, lock_dir=lock_dir)
+        items = store.all()
+        assert len(items) == 2
+        assert items[0].id == "a"
+        assert items[1].id == "c"
+
+
 class TestMigrationBumpsVersion:
     def test_old_version_gets_bumped_on_read(self, tmp_path: Path):
         lock_dir = tmp_path / "locks"

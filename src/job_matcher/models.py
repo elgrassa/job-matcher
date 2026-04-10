@@ -5,7 +5,7 @@ from datetime import UTC, datetime
 from enum import StrEnum
 from typing import Any, Literal
 
-from pydantic import BaseModel, ConfigDict, Field, ValidationInfo, field_validator
+from pydantic import BaseModel, ConfigDict, Field, ValidationInfo, field_validator, model_validator
 
 
 class RawJob(BaseModel):
@@ -35,6 +35,13 @@ class Job(BaseModel):
     description: str
 
     salary_min: float | None
+
+    @field_validator("id")
+    @classmethod
+    def id_hex_format(cls, v: str) -> str:
+        if not re.fullmatch(r"[0-9a-f]{16}", v):
+            raise ValueError("Job id must be 16 lowercase hex chars")
+        return v
     salary_max: float | None
     salary_currency: Literal["EUR", "USD", "PLN", "CHF", "GBP"] | None
     salary_period: Literal["hour", "day", "month", "year"] | None
@@ -164,6 +171,23 @@ class MatchScore(BaseModel):
         if not 0.0 <= v <= 1.0:
             raise ValueError(f"score must be in [0.0, 1.0], got {v}")
         return round(v, 4)
+
+    @model_validator(mode="after")
+    def keywords_consistent(self) -> "MatchScore":
+        required = set(self.keywords_required)
+        matched = set(self.keywords_matched)
+        missing = set(self.keywords_missing)
+        if matched | missing != required:
+            raise ValueError(
+                f"matched + missing must equal required. "
+                f"Extra: {(matched | missing) - required}, "
+                f"Missing: {required - (matched | missing)}"
+            )
+        if matched & missing:
+            raise ValueError(
+                f"keyword in both matched and missing: {matched & missing}"
+            )
+        return self
 
 
 class ApplicationStatus(StrEnum):

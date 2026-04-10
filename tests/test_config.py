@@ -115,3 +115,20 @@ class TestScoringWeights:
     def test_weights_tolerance(self):
         w = ScoringWeights(keyword=0.3500001, semantic=0.6500001)
         assert w.keyword == pytest.approx(0.35, abs=0.001)
+
+
+class TestRealConfigFiles:
+    def test_real_scoring_yaml_loads(self):
+        from job_matcher.constants import CONFIG_DIR
+
+        config = load_scoring_config(CONFIG_DIR / "scoring.yaml")
+        assert len(config.cvs) == 7
+        assert config.default_cv == "senior_sdet"
+        assert config.weights.keyword + config.weights.semantic == pytest.approx(1.0)
+
+    def test_real_platforms_yaml_loads(self):
+        from job_matcher.constants import CONFIG_DIR
+
+        config = load_platforms_config(CONFIG_DIR / "platforms.yaml")
+        assert config.linkedin.enabled is True
+        assert config.linkedin.actor_id is not None
