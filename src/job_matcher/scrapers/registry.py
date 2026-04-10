@@ -2,10 +2,14 @@
 
 from job_matcher.config import PlatformConfig, PlatformsConfig
 from job_matcher.scrapers.base import Scraper
+from job_matcher.scrapers.justjoin import JustJoinScraper
 from job_matcher.scrapers.linkedin import LinkedInScraper
+from job_matcher.scrapers.nofluffjobs import NoFluffJobsScraper
 
 _SCRAPER_CLASSES: dict[str, type[Scraper]] = {
     "linkedin": LinkedInScraper,
+    "justjoin": JustJoinScraper,
+    "nofluffjobs": NoFluffJobsScraper,
 }
 
 
