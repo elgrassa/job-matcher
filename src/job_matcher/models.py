@@ -35,13 +35,6 @@ class Job(BaseModel):
     description: str
 
     salary_min: float | None
-
-    @field_validator("id")
-    @classmethod
-    def id_hex_format(cls, v: str) -> str:
-        if not re.fullmatch(r"[0-9a-f]{16}", v):
-            raise ValueError("Job id must be 16 lowercase hex chars")
-        return v
     salary_max: float | None
     salary_currency: Literal["EUR", "USD", "PLN", "CHF", "GBP"] | None
     salary_period: Literal["hour", "day", "month", "year"] | None
@@ -54,6 +47,13 @@ class Job(BaseModel):
     first_seen_at: datetime
     last_seen_at: datetime
     scraped_at: datetime
+
+    @field_validator("id")
+    @classmethod
+    def id_hex_format(cls, v: str) -> str:
+        if not re.fullmatch(r"[0-9a-f]{16}", v):
+            raise ValueError("Job id must be 16 lowercase hex chars")
+        return v
 
     @field_validator("first_seen_at", "last_seen_at", "scraped_at", "posted_at")
     @classmethod

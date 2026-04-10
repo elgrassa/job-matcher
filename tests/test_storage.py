@@ -346,3 +346,95 @@ class TestMigrationBumpsVersion:
         store.save_all(items)
         raw = json.loads(file_path.read_text())
         assert raw["schema_version"] == 1
+
+
+class TestRealModelRoundtrip:
+    """Integration: prove JsonStore works with actual Job/MatchScore models."""
+
+    def test_job_store_roundtrip(self, tmp_path: Path):
+        from job_matcher.models import Job
+
+        lock_dir = tmp_path / "locks"
+        lock_dir.mkdir()
+        store: JsonStore[Job] = JsonStore(
+            file_path=tmp_path / "jobs.json", model=Job, lock_dir=lock_dir
+        )
+        job = Job(
+            id="a3f7c2b8e1d94f56",
+            title="Senior SDET",
+            company="Acme",
+            location="Wroclaw",
+            description="Java, Python, CI/CD.",
+            salary_min=320.0,
+            salary_max=480.0,
+            salary_currency="EUR",
+            salary_period="day",
+            employment_type="b2b",
+            remote_type="remote",
+            seniority="senior",
+            posted_at="2026-04-10T10:00:00+00:00",
+            first_seen_at="2026-04-10T10:00:00+00:00",
+            last_seen_at="2026-04-10T10:00:00+00:00",
+            scraped_at="2026-04-10T10:00:00+00:00",
+        )
+        store.save_all([job])
+        loaded = store.all()
+        assert len(loaded) == 1
+        assert loaded[0].id == job.id
+        assert loaded[0].salary_min == 320.0
+        assert loaded[0].first_seen_at == job.first_seen_at
+
+    def test_job_upsert_and_read_back(self, tmp_path: Path):
+        from job_matcher.models import Job
+
+        lock_dir = tmp_path / "locks"
+        lock_dir.mkdir()
+        store: JsonStore[Job] = JsonStore(
+            file_path=tmp_path / "jobs.json", model=Job, lock_dir=lock_dir
+        )
+        job = Job(
+            id="b1c2d3e4f5a6b7c8",
+            title="QA Lead",
+            company="Beta",
+            location=None,
+            description="Short.",
+            salary_min=None,
+            salary_max=None,
+            salary_currency=None,
+            salary_period=None,
+            employment_type="unknown",
+            remote_type="remote",
+            seniority="lead",
+            posted_at=None,
+            first_seen_at="2026-04-10T10:00:00+00:00",
+            last_seen_at="2026-04-10T10:00:00+00:00",
+            scraped_at="2026-04-10T10:00:00+00:00",
+        )
+        store.upsert(job, lambda j: j.id)
+        loaded = store.get_by_key(lambda j: j.id, "b1c2d3e4f5a6b7c8")
+        assert loaded is not None
+        assert loaded.location is None
+        assert loaded.posted_at is None
+
+    def test_write_path_strict_rejects_corrupt(self, tmp_path: Path):
+        """Write paths (upsert/delete) must refuse to proceed with corrupt data."""
+        from job_matcher.storage import StorageError
+
+        lock_dir = tmp_path / "locks"
+        lock_dir.mkdir()
+        file_path = tmp_path / "test.json"
+        data = {
+            "schema_version": 1,
+            "updated_at": "2026-01-01T00:00:00+00:00",
+            "entities": [
+                {"id": "a", "name": "Good", "value": 0},
+                {"id": 999, "name": None},  # corrupt
+            ],
+        }
+        file_path.write_text(json.dumps(data))
+        store = JsonStore(file_path=file_path, model=SimpleItem, lock_dir=lock_dir)
+        # Read path: resilient, skips bad entity
+        assert len(store.all()) == 1
+        # Write path: strict, refuses to proceed
+        with pytest.raises(StorageError, match="Corrupt entity"):
+            store.upsert(SimpleItem(id="new", name="New"), _key)

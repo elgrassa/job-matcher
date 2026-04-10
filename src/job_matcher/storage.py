@@ -147,12 +147,18 @@ class JsonStore(Generic[T]):
         content = json.dumps(data, indent=2, ensure_ascii=False)
         _atomic_write(self._file_path, content)
 
-    def _deserialize(self, raw_entities: list[dict[str, Any]]) -> list[T]:
+    def _deserialize(self, raw_entities: list[dict[str, Any]], strict: bool = False) -> list[T]:
+        """Deserialize entities. In strict mode (write paths), raise on any bad entity.
+        In non-strict mode (read-only paths), log and skip corrupt entities."""
         items: list[T] = []
         for i, raw in enumerate(raw_entities):
             try:
                 items.append(self._model.model_validate(raw))
             except ValidationError as e:
+                if strict:
+                    raise StorageError(
+                        f"Corrupt entity at index {i} in {self._file_path}: {e}"
+                    ) from e
                 logger.warning(
                     "Skipping corrupt entity at index %d in %s: %s",
                     i, self._file_path, e,
@@ -198,7 +204,7 @@ class JsonStore(Generic[T]):
         lock = self._acquire_lock()
         try:
             data = self._read_raw()
-            entities = self._deserialize(data["entities"])
+            entities = self._deserialize(data["entities"], strict=True)
             item_key = key_fn(item)
             key_map = {key_fn(e): i for i, e in enumerate(entities)}
             inserted = item_key not in key_map
@@ -218,7 +224,7 @@ class JsonStore(Generic[T]):
         lock = self._acquire_lock()
         try:
             data = self._read_raw()
-            entities = self._deserialize(data["entities"])
+            entities = self._deserialize(data["entities"], strict=True)
             key_map = {key_fn(e): i for i, e in enumerate(entities)}
             inserted = 0
             updated = 0
@@ -246,7 +252,7 @@ class JsonStore(Generic[T]):
         lock = self._acquire_lock()
         try:
             data = self._read_raw()
-            entities = self._deserialize(data["entities"])
+            entities = self._deserialize(data["entities"], strict=True)
             before = len(entities)
             entities = [e for e in entities if not predicate(e)]
             data["entities"] = self._serialize(entities)

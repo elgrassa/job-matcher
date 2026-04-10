@@ -29,6 +29,8 @@ class AnthropicSettings(BaseSettings):
 
 
 class HardFilterConfig(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
     min_daily_rate_eur: float = 320.0
     min_hourly_rate_eur: float = 40.0
     eu_citizenship_keywords: list[str]
@@ -36,6 +38,8 @@ class HardFilterConfig(BaseModel):
 
 
 class ScoringWeights(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
     keyword: float = 0.35
     semantic: float = 0.65
 
@@ -48,11 +52,15 @@ class ScoringWeights(BaseModel):
 
 
 class WarningConfig(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
     score_delta_threshold: float = 0.12
     keyword_delta_threshold: float = 0.25
 
 
 class CvRegistryEntry(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
     id: str
     name: str
     file: str
@@ -61,6 +69,8 @@ class CvRegistryEntry(BaseModel):
 
 
 class ScoringConfig(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
     llm_model: str = "claude-haiku-4-5-20251001"
     max_tokens_per_call: int = 500
     concurrent_llm_calls: int = 5
