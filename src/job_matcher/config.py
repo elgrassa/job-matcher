@@ -33,7 +33,10 @@ class HardFilterConfig(BaseModel):
 
     min_daily_rate_eur: float = 320.0
     min_hourly_rate_eur: float = 40.0
+    reject_hybrid: bool = True
     eu_citizenship_keywords: list[str]
+    us_work_authorization_keywords: list[str] = []
+    us_location_keywords: list[str] = []
     onsite_compatible_cities: list[str]
 
 
