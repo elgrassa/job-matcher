@@ -7,6 +7,7 @@ import pytest
 from job_matcher.config import CvRegistryEntry, ScoringConfig
 from job_matcher.cv_loader import (
     CvFileMissingError,
+    CvLoadError,
     CvRegistryMismatchError,
     compute_content_hash,
     load_all_registered_cvs,
@@ -83,6 +84,12 @@ class TestLoadCvFile:
         monkeypatch.setattr("job_matcher.cv_loader.PROJECT_ROOT", tmp_path)
         entry = _entry(file="cvs/nonexistent.md")
         with pytest.raises(CvFileMissingError):
+            load_cv_file(entry)
+
+    def test_path_traversal_rejected(self, monkeypatch: pytest.MonkeyPatch, tmp_path: Path):
+        monkeypatch.setattr("job_matcher.cv_loader.PROJECT_ROOT", tmp_path)
+        entry = _entry(file="../../etc/passwd")
+        with pytest.raises(CvLoadError, match="escapes project root"):
             load_cv_file(entry)
 
 

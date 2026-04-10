@@ -41,7 +41,8 @@ def _check_onsite_location(job: Job, compatible_cities: list[str]) -> str | None
     if job.remote_type != "onsite":
         return None
     if job.location is None:
-        return None
+        # Onsite with unknown location — cannot verify compatibility, reject
+        return "onsite_unknown_location"
     loc_lower = job.location.lower()
     for city in compatible_cities:
         if city.lower() in loc_lower:

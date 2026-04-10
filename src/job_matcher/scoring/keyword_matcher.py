@@ -1,6 +1,7 @@
 """Mechanical keyword match against CV text."""
 
 import re
+from functools import lru_cache
 
 from pydantic import BaseModel
 
@@ -20,6 +21,7 @@ def compute_keyword_match(required: list[str], cv_text: str) -> KeywordMatchResu
     matched: list[str] = []
     missing: list[str] = []
     cv_lower = cv_text.lower()
+    cv_norm = _normalize_for_match(cv_lower)
 
     for kw in required:
         year_req = _is_year_requirement(kw)
@@ -29,7 +31,7 @@ def compute_keyword_match(required: list[str], cv_text: str) -> KeywordMatchResu
                 matched.append(kw)
             else:
                 missing.append(kw)
-        elif _keyword_matches(kw, cv_lower):
+        elif _keyword_matches(kw, cv_lower, cv_norm):
             matched.append(kw)
         else:
             missing.append(kw)
@@ -64,16 +66,28 @@ def _normalize_for_match(s: str) -> str:
     return re.sub(r"[/\-_]", "", s.lower())
 
 
-def _keyword_matches(kw: str, cv_lower: str) -> bool:
+@lru_cache(maxsize=512)
+def _compile_pattern(kw_lower: str) -> "re.Pattern[str]":
+    """Compile and cache word-boundary pattern for a keyword."""
+    return re.compile(r"\b" + re.escape(kw_lower) + r"\b")
+
+
+@lru_cache(maxsize=512)
+def _compile_norm_pattern(kw_norm: str) -> "re.Pattern[str]":
+    """Compile and cache word-boundary pattern for normalized keyword."""
+    return re.compile(r"\b" + re.escape(kw_norm) + r"\b")
+
+
+def _keyword_matches(kw: str, cv_lower: str, cv_norm: str) -> bool:
     """Check if keyword matches in CV text, handling CI/CD variants."""
     kw_lower = kw.lower()
 
-    # Try exact word-boundary match first
-    pattern = r"\b" + re.escape(kw_lower) + r"\b"
-    if re.search(pattern, cv_lower):
+    # Try exact word-boundary match first (compiled pattern cached per keyword)
+    if _compile_pattern(kw_lower).search(cv_lower):
         return True
 
     # Try normalized match (handles CI/CD vs CICD vs CI-CD)
     kw_norm = _normalize_for_match(kw_lower)
-    cv_norm = _normalize_for_match(cv_lower)
-    return bool(kw_norm and re.search(r"\b" + re.escape(kw_norm) + r"\b", cv_norm))
+    if not kw_norm:
+        return False
+    return bool(_compile_norm_pattern(kw_norm).search(cv_norm))

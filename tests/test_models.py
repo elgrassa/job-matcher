@@ -13,6 +13,7 @@ from job_matcher.models import (
     JobSource,
     MatchScore,
     RawJob,
+    ScrapeRun,
 )
 
 TS = "2026-04-10T10:00:00+00:00"
@@ -327,6 +328,32 @@ class TestRawJob:
                 posted_at_raw=None,
                 raw={},
                 bonus="bad",
+            )
+
+
+class TestScrapeRun:
+    def test_valid_scrape_run(self):
+        run = ScrapeRun(
+            id="run_001",
+            initiated_at=TS,
+            initiated_by="user_cli",
+            platform="linkedin",
+            jobs_fetched=47,
+            cache_hit=False,
+            duration_seconds=12.5,
+        )
+        assert run.platform == "linkedin"
+        assert run.initiated_by == "user_cli"
+
+    def test_extra_fields_forbidden(self):
+        with pytest.raises(ValidationError):
+            ScrapeRun(
+                id="run_001",
+                initiated_at=TS,
+                platform="linkedin",
+                jobs_fetched=10,
+                duration_seconds=1.0,
+                extra_field="bad",
             )
 
 

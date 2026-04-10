@@ -71,6 +71,8 @@ def _atomic_write(path: Path, content: str) -> None:
             f.flush()
             os.fsync(f.fileno())
         os.replace(tmp_path, path)
+        # Restrict to owner-only (data files may contain CV PII)
+        os.chmod(path, 0o600)
     except BaseException:
         with contextlib.suppress(OSError):
             os.unlink(tmp_path)

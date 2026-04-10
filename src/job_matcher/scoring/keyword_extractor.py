@@ -1,13 +1,29 @@
 """LLM-based keyword extraction from job descriptions."""
 
-import asyncio
 import hashlib
 import json
 import logging
 from datetime import UTC, datetime
 
+import anthropic
+from tenacity import (
+    retry,
+    retry_if_exception_type,
+    stop_after_attempt,
+    wait_exponential,
+)
+
 from job_matcher.cost_tracker import CostTracker
 from job_matcher.models import JdKeywords, Job
+
+_LLM_RETRY = retry(
+    retry=retry_if_exception_type(
+        (anthropic.RateLimitError, anthropic.InternalServerError)
+    ),
+    stop=stop_after_attempt(3),
+    wait=wait_exponential(multiplier=1, min=2, max=60),
+    reraise=True,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -73,11 +89,16 @@ class KeywordExtractor:
 
     async def extract(self, job: Job) -> JdKeywords:
         prompt = build_extraction_prompt(job)
-        response = await self._client.messages.create(
-            model=self._model,
-            max_tokens=500,
-            messages=[{"role": "user", "content": prompt}],
-        )
+
+        @_LLM_RETRY
+        async def _call():
+            return await self._client.messages.create(
+                model=self._model,
+                max_tokens=500,
+                messages=[{"role": "user", "content": prompt}],
+            )
+
+        response = await _call()
         text = response.content[0].text
         usage = response.usage
         self._cost_tracker.record(
@@ -97,11 +118,3 @@ class KeywordExtractor:
             job_description_hash=desc_hash,
         )
 
-    async def extract_batch(
-        self, jobs: list[Job], semaphore: asyncio.Semaphore
-    ) -> list[JdKeywords]:
-        async def _extract_with_sem(job: Job) -> JdKeywords:
-            async with semaphore:
-                return await self.extract(job)
-
-        return list(await asyncio.gather(*[_extract_with_sem(j) for j in jobs]))

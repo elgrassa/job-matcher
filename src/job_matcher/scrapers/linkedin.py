@@ -31,8 +31,11 @@ class LinkedInScraper(Scraper):
         for item in self._iterate_dataset(dataset_id, max_results):
             try:
                 yield self.parse_item(item)
-            except Exception:
-                logger.warning("Failed to parse LinkedIn item, skipping", exc_info=True)
+            except Exception as e:
+                logger.warning(
+                    "Failed to parse LinkedIn item (%s: %s), skipping",
+                    type(e).__name__, str(e)[:200],
+                )
 
     def parse_item(self, raw: dict[str, Any]) -> RawJob:
         # company is a nested dict: {"name": "...", "linkedinUrl": "..."}
