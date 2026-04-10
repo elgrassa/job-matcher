@@ -2,7 +2,17 @@
 
 from pathlib import Path
 
-PROJECT_ROOT: Path = Path(__file__).parents[2]
+
+def _find_project_root() -> Path:
+    """Walk up from CWD looking for pyproject.toml as project root marker."""
+    cwd = Path.cwd()
+    for parent in [cwd, *cwd.parents]:
+        if (parent / "pyproject.toml").exists() and (parent / "src" / "job_matcher").exists():
+            return parent
+    return cwd
+
+
+PROJECT_ROOT: Path = _find_project_root()
 DATA_DIR: Path = PROJECT_ROOT / "data"
 CVS_DIR: Path = PROJECT_ROOT / "cvs"
 CONFIG_DIR: Path = PROJECT_ROOT / "config"
@@ -24,5 +34,4 @@ MODEL_PRICING: dict[str, dict[str, float]] = {
 
 DEFAULT_MODEL: str = "claude-haiku-4-5-20251001"
 FILELOCK_TIMEOUT_SECONDS: float = 30.0
-MAX_LLM_CONCURRENCY: int = 5
 COST_WARNING_THRESHOLD_USD: float = 5.00

@@ -9,7 +9,7 @@ data/
 __pycache__/
 *.pyc
 *.pyo
-*.egg-info/
+**/*.egg-info/
 dist/
 build/
 
@@ -20,6 +20,9 @@ cvs/*.md
 .pytest_cache/
 .mypy_cache/
 .ruff_cache/
+
+# OS
+.DS_Store
 
 # IDE
 .idea/
