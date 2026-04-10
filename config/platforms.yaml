@@ -58,6 +58,8 @@ platforms:
         - "java"
         - "python"
       experience_levels:
+        - "junior"    # AI roles — user has MealMaster + AI projects
+        - "mid"       # AI roles — applied AI (agents, RAG, eval)
         - "senior"
         - "expert"
       employment_types:
