@@ -99,8 +99,8 @@ class CvVersion(BaseModel):
     @field_validator("content_hash")
     @classmethod
     def hash_format(cls, v: str) -> str:
-        if not v.startswith("sha256:") or len(v) != 71:
-            raise ValueError("content_hash must be 'sha256:' + 64 hex chars")
+        if not re.fullmatch(r"sha256:[0-9a-f]{64}", v):
+            raise ValueError("content_hash must be 'sha256:' + 64 lowercase hex chars")
         return v
 
     @field_validator("id")
@@ -201,6 +201,6 @@ class CostLedgerEntry(BaseModel):
     job_id: str | None
     cv_id: str | None
     model: str
-    input_tokens: int
-    output_tokens: int
-    cost_usd: float
+    input_tokens: int = Field(ge=0)
+    output_tokens: int = Field(ge=0)
+    cost_usd: float = Field(ge=0.0)

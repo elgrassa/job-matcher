@@ -262,6 +262,36 @@ class TestCostLedgerEntry:
         )
         assert entry.cost_usd == 0.0025
 
+    def test_negative_tokens_rejected(self):
+        with pytest.raises(ValidationError):
+            CostLedgerEntry(
+                id=1,
+                timestamp=TS,
+                command="score",
+                operation="semantic_scoring",
+                job_id=None,
+                cv_id=None,
+                model="test",
+                input_tokens=-1,
+                output_tokens=0,
+                cost_usd=0.0,
+            )
+
+    def test_negative_cost_rejected(self):
+        with pytest.raises(ValidationError):
+            CostLedgerEntry(
+                id=1,
+                timestamp=TS,
+                command="score",
+                operation="semantic_scoring",
+                job_id=None,
+                cv_id=None,
+                model="test",
+                input_tokens=0,
+                output_tokens=0,
+                cost_usd=-0.01,
+            )
+
 
 class TestRawJob:
     def test_valid_raw_job(self):
@@ -298,3 +328,68 @@ class TestRawJob:
                 raw={},
                 bonus="bad",
             )
+
+
+class TestCvVersionHashValidation:
+    def test_non_hex_chars_rejected(self):
+        with pytest.raises(ValidationError, match="hex"):
+            CvVersion(
+                id="test",
+                name="Test",
+                file_path="test.md",
+                content_hash="sha256:" + "z" * 64,
+                content="x",
+                char_count=1,
+                loaded_at=TS,
+            )
+
+    def test_uppercase_hex_rejected(self):
+        with pytest.raises(ValidationError, match="hex"):
+            CvVersion(
+                id="test",
+                name="Test",
+                file_path="test.md",
+                content_hash="sha256:" + "A" * 64,
+                content="x",
+                char_count=1,
+                loaded_at=TS,
+            )
+
+
+class TestJobRoundtrip:
+    def test_dump_and_validate_produces_identical_job(self):
+        job = Job(**_job())
+        dumped = job.model_dump(mode="json")
+        restored = Job.model_validate(dumped)
+        assert job.id == restored.id
+        assert job.title == restored.title
+        assert job.salary_min == restored.salary_min
+        assert job.first_seen_at == restored.first_seen_at
+        assert job.posted_at == restored.posted_at
+
+    def test_roundtrip_with_null_salary(self):
+        job = Job(
+            **_job(
+                salary_min=None, salary_max=None,
+                salary_currency=None, salary_period=None, posted_at=None,
+            )
+        )
+        dumped = job.model_dump(mode="json")
+        restored = Job.model_validate(dumped)
+        assert restored.salary_min is None
+        assert restored.posted_at is None
+
+    def test_roundtrip_preserves_score_rounding(self):
+        score = MatchScore(
+            job_id="a", cv_id="b",
+            keyword_score=0.33333, semantic_score=0.66666,
+            keywords_required=[], keywords_matched=[], keywords_missing=[],
+            reasoning="test", green_flags=[], red_flags=[],
+            llm_model_used="test", final_score=0.55555,
+            hard_filter_triggered=None, scored_at=TS,
+            cv_content_hash="abc", jd_keyword_hash="def",
+        )
+        dumped = score.model_dump(mode="json")
+        restored = MatchScore.model_validate(dumped)
+        assert restored.keyword_score == score.keyword_score
+        assert restored.semantic_score == score.semantic_score

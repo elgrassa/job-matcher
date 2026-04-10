@@ -256,19 +256,11 @@ class TestLockTimeout:
         external_lock = FileLock(lock_dir / "test.lock")
         external_lock.acquire()
         try:
-            # Temporarily override timeout for fast test
-            from job_matcher import constants
-
-            original = constants.FILELOCK_TIMEOUT_SECONDS
-            constants.FILELOCK_TIMEOUT_SECONDS = 0.1
-            store2 = JsonStore(
-                file_path=file_path, model=SimpleItem, lock_dir=lock_dir
+            store = JsonStore(
+                file_path=file_path, model=SimpleItem, lock_dir=lock_dir, timeout=0.1
             )
-            try:
-                with pytest.raises(LockTimeoutError):
-                    store2.all()
-            finally:
-                constants.FILELOCK_TIMEOUT_SECONDS = original
+            with pytest.raises(LockTimeoutError):
+                store.all()
         finally:
             external_lock.release()
 
@@ -281,3 +273,54 @@ class TestEmptyFile:
         file_path.write_text("")
         store = JsonStore(file_path=file_path, model=SimpleItem, lock_dir=lock_dir)
         assert store.all() == []
+
+
+class TestSaveAllOverwrite:
+    def test_replaces_all_existing_data(self, tmp_path: Path):
+        store = _make_store(
+            tmp_path,
+            [SimpleItem(id="a", name="A"), SimpleItem(id="b", name="B")],
+        )
+        assert store.count() == 2
+        store.save_all([SimpleItem(id="x", name="X")])
+        items = store.all()
+        assert len(items) == 1
+        assert items[0].id == "x"
+
+
+class TestDeleteMultiple:
+    def test_deletes_all_matching(self, tmp_path: Path):
+        store = _make_store(
+            tmp_path,
+            [
+                SimpleItem(id="a", name="group1", value=1),
+                SimpleItem(id="b", name="group1", value=1),
+                SimpleItem(id="c", name="group2", value=2),
+            ],
+        )
+        deleted = store.delete(lambda x: x.value == 1)
+        assert deleted == 2
+        assert store.count() == 1
+        assert store.all()[0].id == "c"
+
+
+class TestMigrationBumpsVersion:
+    def test_old_version_gets_bumped_on_read(self, tmp_path: Path):
+        lock_dir = tmp_path / "locks"
+        lock_dir.mkdir()
+        file_path = tmp_path / "test.json"
+        data = {
+            "schema_version": 0,
+            "updated_at": "2026-01-01T00:00:00+00:00",
+            "entities": [{"id": "a", "name": "A", "value": 0}],
+        }
+        file_path.write_text(json.dumps(data))
+        store = JsonStore(
+            file_path=file_path, model=SimpleItem, lock_dir=lock_dir, schema_version=1
+        )
+        items = store.all()
+        assert len(items) == 1
+        # After a write, the version should be bumped
+        store.save_all(items)
+        raw = json.loads(file_path.read_text())
+        assert raw["schema_version"] == 1

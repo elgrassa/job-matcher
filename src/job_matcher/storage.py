@@ -65,6 +65,8 @@ def _atomic_write(path: Path, content: str) -> None:
     try:
         with os.fdopen(fd, "w", encoding="utf-8") as f:
             f.write(content)
+            f.flush()
+            os.fsync(f.fileno())
         os.replace(tmp_path, path)
     except BaseException:
         with contextlib.suppress(OSError):
@@ -79,21 +81,23 @@ class JsonStore(Generic[T]):
         model: type[T],
         lock_dir: Path = LOCK_DIR,
         schema_version: int = CURRENT_SCHEMA_VERSION,
+        timeout: float = FILELOCK_TIMEOUT_SECONDS,
     ):
         self._file_path = file_path
         self._model = model
         self._schema_version = schema_version
+        self._timeout = timeout
         self._lock_path = lock_dir / f"{file_path.stem}.lock"
         lock_dir.mkdir(parents=True, exist_ok=True)
 
     def _acquire_lock(self) -> FileLock:
-        lock = FileLock(self._lock_path, timeout=FILELOCK_TIMEOUT_SECONDS)
+        lock = FileLock(self._lock_path, timeout=self._timeout)
         try:
             lock.acquire()
         except Timeout as e:
             raise LockTimeoutError(
                 f"Could not acquire lock for {self._file_path} within "
-                f"{FILELOCK_TIMEOUT_SECONDS}s. Delete {self._lock_path} if stale."
+                f"{self._timeout}s. Delete {self._lock_path} if stale."
             ) from e
         return lock
 
@@ -121,14 +125,18 @@ class JsonStore(Generic[T]):
                 "Upgrade the tool or migrate the data."
             )
         if file_version < self._schema_version:
-            data.update(self._migrate(data, file_version))
+            self._migrate(data, file_version)
         if not isinstance(data.get("entities"), list):
             raise StorageError(f"'entities' must be a list in {self._file_path}")
 
-    def _migrate(self, data: dict[str, Any], from_version: int) -> dict[str, Any]:
-        # No migrations yet (we're on v1). Future: chain _migrate_v1_to_v2, etc.
+    def _migrate(self, data: dict[str, Any], from_version: int) -> None:
+        """Mutate data in-place to bring it up to self._schema_version.
+
+        No migrations exist yet (v1). Future: chain _migrate_v1_to_v2, etc.
+        Always bump schema_version so migration doesn't re-trigger on writes.
+        """
         _ = from_version
-        return data
+        data["schema_version"] = self._schema_version
 
     def _write_raw(self, data: dict[str, Any]) -> None:
         data["updated_at"] = datetime.now(UTC).isoformat()
@@ -136,10 +144,7 @@ class JsonStore(Generic[T]):
         _atomic_write(self._file_path, content)
 
     def _deserialize(self, raw_entities: list[dict[str, Any]]) -> list[T]:
-        items: list[T] = []
-        for raw in raw_entities:
-            items.append(self._model.model_validate(raw))
-        return items
+        return [self._model.model_validate(raw) for raw in raw_entities]
 
     def _serialize(self, items: list[T]) -> list[dict[str, Any]]:
         return [item.model_dump(mode="json") for item in items]
@@ -245,12 +250,9 @@ def _make_store(file_path: Path, model: type[T]) -> JsonStore[T]:
     return JsonStore(file_path=file_path, model=model)
 
 
-# Lazy store creation: import models here to avoid circular imports at module level
-def _create_typed_stores() -> (
-    tuple[
-        JsonStore, JsonStore, JsonStore, JsonStore, JsonStore, JsonStore, JsonStore
-    ]
-):
+def _create_typed_stores() -> tuple[
+    JsonStore, JsonStore, JsonStore, JsonStore, JsonStore, JsonStore, JsonStore
+]:  # type annotations use bare JsonStore; actual types inferred at call sites
     from job_matcher.models import (
         Application,
         CostLedgerEntry,
