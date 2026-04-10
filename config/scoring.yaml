@@ -12,8 +12,8 @@ scoring:
     keyword_delta_threshold: 0.25
 
   hard_filters:
-    min_daily_rate_eur: 320
-    min_hourly_rate_eur: 40
+    min_daily_rate_eur: 280
+    min_hourly_rate_eur: 35
 
     reject_hybrid: true
 

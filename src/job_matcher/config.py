@@ -31,8 +31,8 @@ class AnthropicSettings(BaseSettings):
 class HardFilterConfig(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
-    min_daily_rate_eur: float = 320.0
-    min_hourly_rate_eur: float = 40.0
+    min_daily_rate_eur: float = 280.0
+    min_hourly_rate_eur: float = 35.0
     reject_hybrid: bool = True
     eu_citizenship_keywords: list[str]
     us_work_authorization_keywords: list[str] = []

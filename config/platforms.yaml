@@ -4,15 +4,36 @@ platforms:
     actor_id: "harvestapi/linkedin-job-search"
     default_input:
       titles:
+        # QA / Test track
+        - "SDET"
         - "Senior SDET"
+        - "Senior Test Automation Engineer"
+        - "Test Automation Engineer"
+        - "QA Engineer"
         - "Senior QA Automation Engineer"
+        - "Software Engineer in Test"
         - "QA Architect"
-        - "AI QA Engineer"
-        - "LLM Evaluation Engineer"
+        - "QA Lead"
+        - "Head of QA"
+        - "Principal QA Engineer"
+        # DevSecOps / Security track
         - "DevSecOps Engineer"
-        - "Senior Performance Engineer"
-        - "Senior Java Engineer"
+        - "Security Engineer"
+        - "AppSec Engineer"
+        # Platform / Infra track
         - "Platform Engineer"
+        - "DevOps Engineer"
+        - "Infrastructure Engineer"
+        - "SRE"
+        # Performance track
+        - "Senior Performance Engineer"
+        # AI / Applied AI track (agents, RAG, evaluation — not deep ML)
+        - "AI QA Engineer"
+        - "AI Engineer"
+        - "LLM Engineer"
+        # Java backend track
+        - "Senior Java Engineer"
+        # Leadership track
         - "Engineering Manager QA"
       locations:
         - "Poland"
@@ -22,7 +43,6 @@ platforms:
         - "Remote"
       work_type:
         - "Remote"
-        - "Hybrid"
       posted_within_days: 3
       max_results: 150
 
@@ -56,9 +76,15 @@ platforms:
     default_input:
       search_terms:
         - "sdet"
+        - "test automation"
         - "senior automation"
+        - "qa engineer"
+        - "qa lead"
         - "devsecops"
-        - "llm engineer"
-        - "performance engineer"
+        - "security engineer"
         - "platform engineer"
+        - "devops engineer"
+        - "llm engineer"
+        - "ai engineer"
+        - "performance engineer"
       max_results: 150
