@@ -160,13 +160,53 @@ class TestRateFloor:
         assert result.triggered is True
         assert result.reason == "rate_below_floor_30eur_hour"
 
-    def test_usd_currency_does_not_trigger_yet(self):
+    def test_usd_below_floor_triggers_with_conversion(self):
+        # $10/day = ~9.20 EUR/day, well below 280 EUR floor
         job = _job(salary_min=10.0, salary_currency="USD", salary_period="day")
+        result = check_hard_filters(job, _config())
+        assert result.triggered is True
+        assert result.reason == "rate_below_floor_10usd_day"
+
+    def test_usd_above_floor_does_not_trigger(self):
+        # $350/day = ~322 EUR/day, above 280 EUR floor
+        job = _job(salary_min=350.0, salary_currency="USD", salary_period="day")
+        result = check_hard_filters(job, _config())
+        assert result.triggered is False
+
+    def test_pln_below_floor_triggers(self):
+        # 500 PLN/day = ~115 EUR/day, below 280 EUR floor
+        job = _job(salary_min=500.0, salary_currency="PLN", salary_period="day")
+        result = check_hard_filters(job, _config())
+        assert result.triggered is True
+        assert result.reason == "rate_below_floor_500pln_day"
+
+    def test_gbp_above_floor_does_not_trigger(self):
+        # £280/day = ~327.60 EUR/day, above 320 EUR floor
+        job = _job(salary_min=280.0, salary_currency="GBP", salary_period="day")
         result = check_hard_filters(job, _config())
         assert result.triggered is False
 
     def test_missing_salary_does_not_trigger(self):
         job = _job(salary_min=None, salary_currency=None, salary_period=None)
+        result = check_hard_filters(job, _config())
+        assert result.triggered is False
+
+
+class TestRateFloorEdgeCases:
+    def test_null_currency_does_not_trigger(self):
+        # Currency is None → filter skipped (can't convert)
+        job = _job(salary_min=10.0, salary_currency=None, salary_period="day")
+        result = check_hard_filters(job, _config())
+        assert result.triggered is False
+
+    def test_salary_period_month_does_not_trigger(self):
+        # Only day/hour checked; month/year pass through
+        job = _job(salary_min=100.0, salary_currency="EUR", salary_period="month")
+        result = check_hard_filters(job, _config())
+        assert result.triggered is False
+
+    def test_salary_period_none_does_not_trigger(self):
+        job = _job(salary_min=100.0, salary_currency="EUR", salary_period=None)
         result = check_hard_filters(job, _config())
         assert result.triggered is False
 

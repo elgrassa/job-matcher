@@ -103,6 +103,21 @@ class TestGreyOut:
         apply_to_job("abc123def4567890", "senior_sdet")
         assert get_applied_cv("abc123def4567890") == "senior_sdet"
 
+    def test_withdrawn_is_not_greyed_out(self, tmp_path, monkeypatch):
+        _make_stores(tmp_path, monkeypatch)
+        from job_matcher.tracker import apply_to_job, is_greyed_out, update_status
+
+        apply_to_job("abc123def4567890", "senior_sdet")
+        assert is_greyed_out("abc123def4567890") is True
+        update_status("abc123def4567890", "senior_sdet", ApplicationStatus.WITHDRAWN)
+        assert is_greyed_out("abc123def4567890") is False
+
+    def test_get_applied_cv_returns_none_when_no_apps(self, tmp_path, monkeypatch):
+        _make_stores(tmp_path, monkeypatch)
+        from job_matcher.tracker import get_applied_cv
+
+        assert get_applied_cv("nonexistent0000") is None
+
 
 class TestApplyWarnings:
     def _score(self, job_id, cv_id, final, kw):

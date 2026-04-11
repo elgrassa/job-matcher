@@ -124,3 +124,24 @@ class TestNamespaceValidation:
         cache = LocalCache(cache_dir=tmp_path, key=key)
         cache.store("linkedin-2026_04", [{"x": 1}])
         assert cache.load("linkedin-2026_04") == [{"x": 1}]
+
+    def test_rejects_uppercase(self, tmp_path):
+        key = Fernet.generate_key()
+        cache = LocalCache(cache_dir=tmp_path, key=key)
+        with pytest.raises(ValueError, match="Invalid cache namespace"):
+            cache.store("LinkedIn", [])
+
+
+class TestEdgeCases:
+    def test_empty_list_roundtrip(self, tmp_path):
+        key = Fernet.generate_key()
+        cache = LocalCache(cache_dir=tmp_path, key=key)
+        cache.store("empty", [])
+        assert cache.load("empty") == []
+
+    def test_corrupt_file_returns_none(self, tmp_path):
+        key = Fernet.generate_key()
+        cache = LocalCache(cache_dir=tmp_path, key=key)
+        # Write garbage to the cache file
+        (tmp_path / "corrupt.enc").write_bytes(b"not encrypted data")
+        assert cache.load("corrupt") is None
