@@ -48,7 +48,6 @@ def run_scrape(
 
         start = time.monotonic()
         cache_hit = False
-        new_count = 0
 
         # Check cache first
         if cache:
@@ -59,37 +58,41 @@ def run_scrape(
                 for item in cached:
                     with contextlib.suppress(Exception):
                         raw_jobs.append(scraper.parse_item(item))
-                new_count = len(raw_jobs)
-                logger.info("Cache hit for %s: %d items", name, new_count)
+                logger.info("Cache hit for %s: %d items", name, len(raw_jobs))
             else:
                 raw_jobs = list(scraper.scrape(max_results=max_results))
-                new_count = len(raw_jobs)
                 # Cache the raw dicts for next time
                 if raw_jobs:
                     cache.store(name, [rj.raw for rj in raw_jobs])
         else:
             raw_jobs = list(scraper.scrape(max_results=max_results))
-            new_count = len(raw_jobs)
 
-        # Dedup and store
+        raw_count = len(raw_jobs)
+
+        # Dedup and store — track unique IDs
+        seen_ids: set[str] = set()
         for raw_job in raw_jobs:
             job, source = canonicalize_raw(raw_job)
+            seen_ids.add(job.id)
             jobs_store.upsert(job, lambda j: j.id)
             sources_store.upsert(source, lambda s: (s.job_id, s.platform))
 
+        unique_count = len(seen_ids)
         duration = time.monotonic() - start
         run = ScrapeRun(
             id=f"{name}_{datetime.now(UTC).strftime('%Y%m%d_%H%M%S')}",
             initiated_at=datetime.now(UTC),
             platform=name,
-            jobs_fetched=new_count,
+            jobs_fetched=raw_count,
+            raw_count=raw_count,
+            unique_count=unique_count,
             cache_hit=cache_hit,
             duration_seconds=round(duration, 1),
         )
         runs.append(run)
         logger.info(
-            "Scraped %s: %d jobs in %.1fs (cache_hit=%s)",
-            name, new_count, duration, cache_hit,
+            "Scraped %s: %d raw -> %d unique in %.1fs (cache_hit=%s)",
+            name, raw_count, unique_count, duration, cache_hit,
         )
 
     return runs
@@ -113,5 +116,9 @@ def run_score(
     jobs = jobs_store.all()
 
     return asyncio.run(
-        pipeline.score_jobs(jobs, cvs, only_new=only_new, max_total_pairs=max_total_pairs)
+        pipeline.score_jobs(
+            jobs, cvs, only_new=only_new,
+            max_total_pairs=max_total_pairs,
+            show_progress=True,
+        )
     )

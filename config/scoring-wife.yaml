@@ -1,0 +1,58 @@
+scoring:
+  llm_model: "claude-haiku-4-5-20251001"
+  max_tokens_per_call: 500
+  concurrent_llm_calls: 5
+
+  weights:
+    keyword: 0.35
+    semantic: 0.65
+
+  warning:
+    score_delta_threshold: 0.12
+    keyword_delta_threshold: 0.25
+
+  hard_filters:
+    # TODO: adjust rate floor to wife's expectations
+    min_daily_rate_eur: 200
+    min_hourly_rate_eur: 25
+
+    reject_hybrid: false
+
+    eu_citizenship_keywords:
+      - "eu citizenship required"
+      - "must be eu citizen"
+      - "must hold eu passport"
+      - "eu nationals only"
+      - "european union citizenship required"
+      - "valid eu work permit required"
+
+    us_work_authorization_keywords:
+      - "must be authorized to work in the united states"
+      - "must be authorized to work in the us"
+      - "us work authorization required"
+      - "must reside in the united states"
+      - "united states only"
+      - "us citizens only"
+      - "us-based only"
+
+    us_location_keywords:
+      - "united states"
+      - ", us"
+      - "usa"
+
+    onsite_compatible_cities:
+      - "wroclaw"
+      - "wrocław"
+      - "remote"
+
+cvs:
+  # TODO: set default CV id
+  default: "wife_cv"
+
+  versions:
+    # TODO: update file path and description
+    - id: "wife_cv"
+      name: "Wife CV"
+      file: "cvs/wife_cv.md"
+      description: "TODO: add description"
+      enabled: true

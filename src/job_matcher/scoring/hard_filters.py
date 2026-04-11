@@ -82,12 +82,18 @@ def _check_us_territory_restricted(
 def _check_rate_floor(
     job: Job, min_day_eur: float, min_hour_eur: float
 ) -> str | None:
-    if job.salary_currency != "EUR":
+    if job.salary_min is None or job.salary_currency is None:
         return None
-    if job.salary_min is None:
-        return None
-    if job.salary_period == "day" and job.salary_min < min_day_eur:
-        return f"rate_below_floor_{int(job.salary_min)}eur_day"
-    if job.salary_period == "hour" and job.salary_min < min_hour_eur:
-        return f"rate_below_floor_{int(job.salary_min)}eur_hour"
+
+    from job_matcher.currency import to_eur
+
+    salary_eur = to_eur(job.salary_min, job.salary_currency)
+    if salary_eur is None:
+        return None  # Unknown currency — don't filter
+
+    currency_tag = job.salary_currency.lower()
+    if job.salary_period == "day" and salary_eur < min_day_eur:
+        return f"rate_below_floor_{int(job.salary_min)}{currency_tag}_day"
+    if job.salary_period == "hour" and salary_eur < min_hour_eur:
+        return f"rate_below_floor_{int(job.salary_min)}{currency_tag}_hour"
     return None

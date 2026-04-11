@@ -111,7 +111,11 @@ def _read_yaml(path: Path) -> dict[str, Any]:
 
 
 def load_scoring_config(path: Path | None = None) -> ScoringConfig:
-    p = path or (CONFIG_DIR / "scoring.yaml")
+    if path is None:
+        from job_matcher.profile import get_profile
+        profile_path = CONFIG_DIR / f"scoring-{get_profile()}.yaml"
+        path = profile_path if profile_path.exists() else CONFIG_DIR / "scoring.yaml"
+    p = path
     data = _read_yaml(p)
     try:
         scoring_raw = data.get("scoring", {})

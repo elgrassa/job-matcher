@@ -17,6 +17,8 @@ DATA_DIR: Path = PROJECT_ROOT / "data"
 CVS_DIR: Path = PROJECT_ROOT / "cvs"
 CONFIG_DIR: Path = PROJECT_ROOT / "config"
 LOCK_DIR: Path = DATA_DIR / ".locks"
+PROFILES_DIR: Path = DATA_DIR / "profiles"
+DEFAULT_PROFILE: str = "default"
 
 CACHE_DIR: Path = DATA_DIR / ".cache"
 

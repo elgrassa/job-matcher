@@ -84,88 +84,107 @@ class ScoringPipeline:
         cvs: list[CvVersion],
         only_new: bool = True,
         max_total_pairs: int | None = None,
+        show_progress: bool = False,
     ) -> ScoringRunSummary:
+        from rich.progress import BarColumn, Progress, SpinnerColumn, TextColumn, TimeElapsedColumn
+
         start = time.monotonic()
         pairs_scored = 0
         pairs_skipped_fresh = 0
         pairs_skipped_filtered = 0
         jobs_processed = 0
+        total_pairs = len(jobs) * len(cvs)
 
         existing_scores = {
             (s.job_id, s.cv_id): s for s in scores_store.all()
         }
         existing_keywords = {kw.job_id: kw for kw in keywords_store.all()}
 
-        for job in jobs:
-            jobs_processed += 1
+        progress = Progress(
+            SpinnerColumn(),
+            TextColumn("[progress.description]{task.description}"),
+            BarColumn(),
+            TextColumn("{task.completed}/{task.total}"),
+            TimeElapsedColumn(),
+            disable=not show_progress,
+        )
+        with progress:
+            task = progress.add_task("Scoring", total=total_pairs)
 
-            # Hard filter check
-            filter_result = check_hard_filters(job, self._config.hard_filters)
-            if filter_result.triggered:
-                for cv in cvs:
-                    if (job.id, cv.id) not in existing_scores:
-                        zero_score = self._make_filtered_score(
-                            job, cv, filter_result.reason or "unknown_filter"
-                        )
-                        scores_store.upsert(zero_score, _score_key)
-                        pairs_skipped_filtered += 1
-                continue
+            for job in jobs:
+                jobs_processed += 1
 
-            # Keyword extraction (cached)
-            kw_entry = existing_keywords.get(job.id)
-            if kw_entry is None or kw_entry.job_description_hash != hashlib.sha256(
-                job.description.encode("utf-8")
-            ).hexdigest():
-                kw_entry = await self._extractor.extract(job)
-                keywords_store.upsert(kw_entry, _kw_key)
-                existing_keywords[job.id] = kw_entry
-
-            # Score each CV
-            for cv in cvs:
-                if max_total_pairs is not None and pairs_scored >= max_total_pairs:
-                    break
-
-                existing = existing_scores.get((job.id, cv.id))
-                if only_new and existing and not is_score_stale(existing, cv, kw_entry):
-                    pairs_skipped_fresh += 1
+                # Hard filter check
+                filter_result = check_hard_filters(job, self._config.hard_filters)
+                if filter_result.triggered:
+                    for cv in cvs:
+                        if (job.id, cv.id) not in existing_scores:
+                            zero_score = self._make_filtered_score(
+                                job, cv, filter_result.reason or "unknown_filter"
+                            )
+                            scores_store.upsert(zero_score, _score_key)
+                            pairs_skipped_filtered += 1
+                        progress.advance(task)
                     continue
 
-                # Keyword match (pure Python)
-                kw_result = compute_keyword_match(kw_entry.must_have, cv.content)
+                # Keyword extraction (cached)
+                kw_entry = existing_keywords.get(job.id)
+                if kw_entry is None or kw_entry.job_description_hash != hashlib.sha256(
+                    job.description.encode("utf-8")
+                ).hexdigest():
+                    kw_entry = await self._extractor.extract(job)
+                    keywords_store.upsert(kw_entry, _kw_key)
+                    existing_keywords[job.id] = kw_entry
 
-                # Semantic score (LLM)
-                llm_result = await self._scorer.score_one(
-                    job, cv, kw_entry.must_have
-                )
+                # Score each CV
+                for cv in cvs:
+                    if max_total_pairs is not None and pairs_scored >= max_total_pairs:
+                        progress.advance(task)
+                        break
 
-                final = compute_final_score(
-                    kw_result.score, llm_result.semantic_score, self._config.weights
-                )
-                kw_hash = _compute_keyword_hash(kw_entry.must_have)
+                    existing = existing_scores.get((job.id, cv.id))
+                    if only_new and existing and not is_score_stale(existing, cv, kw_entry):
+                        pairs_skipped_fresh += 1
+                        progress.advance(task)
+                        continue
 
-                match_score = MatchScore(
-                    job_id=job.id,
-                    cv_id=cv.id,
-                    keyword_score=kw_result.score,
-                    keywords_required=kw_result.required,
-                    keywords_matched=kw_result.matched,
-                    keywords_missing=kw_result.missing,
-                    semantic_score=llm_result.semantic_score,
-                    reasoning=llm_result.reasoning,
-                    green_flags=llm_result.green_flags,
-                    red_flags=llm_result.red_flags,
-                    llm_model_used=self._config.llm_model,
-                    final_score=final,
-                    hard_filter_triggered=None,
-                    scored_at=datetime.now(UTC),
-                    cv_content_hash=cv.content_hash,
-                    jd_keyword_hash=kw_hash,
-                )
-                scores_store.upsert(match_score, _score_key)
-                pairs_scored += 1
+                    # Keyword match (pure Python)
+                    kw_result = compute_keyword_match(kw_entry.must_have, cv.content)
 
-            if max_total_pairs is not None and pairs_scored >= max_total_pairs:
-                break
+                    # Semantic score (LLM)
+                    llm_result = await self._scorer.score_one(
+                        job, cv, kw_entry.must_have
+                    )
+
+                    final = compute_final_score(
+                        kw_result.score, llm_result.semantic_score, self._config.weights
+                    )
+                    kw_hash = _compute_keyword_hash(kw_entry.must_have)
+
+                    match_score = MatchScore(
+                        job_id=job.id,
+                        cv_id=cv.id,
+                        keyword_score=kw_result.score,
+                        keywords_required=kw_result.required,
+                        keywords_matched=kw_result.matched,
+                        keywords_missing=kw_result.missing,
+                        semantic_score=llm_result.semantic_score,
+                        reasoning=llm_result.reasoning,
+                        green_flags=llm_result.green_flags,
+                        red_flags=llm_result.red_flags,
+                        llm_model_used=self._config.llm_model,
+                        final_score=final,
+                        hard_filter_triggered=None,
+                        scored_at=datetime.now(UTC),
+                        cv_content_hash=cv.content_hash,
+                        jd_keyword_hash=kw_hash,
+                    )
+                    scores_store.upsert(match_score, _score_key)
+                    pairs_scored += 1
+                    progress.advance(task)
+
+                if max_total_pairs is not None and pairs_scored >= max_total_pairs:
+                    break
 
         duration = time.monotonic() - start
         cost_summary = self._cost_tracker.summary_by_operation()

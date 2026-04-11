@@ -225,6 +225,8 @@ class ScrapeRun(BaseModel):
     initiated_by: Literal["user_cli"] = "user_cli"
     platform: Literal["linkedin", "justjoin", "nofluffjobs"]
     jobs_fetched: int = Field(ge=0)
+    raw_count: int = Field(ge=0, default=0)
+    unique_count: int = Field(ge=0, default=0)
     cache_hit: bool = False
     duration_seconds: float = Field(ge=0.0)
 

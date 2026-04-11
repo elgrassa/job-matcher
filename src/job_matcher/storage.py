@@ -14,16 +14,12 @@ from filelock import FileLock, Timeout
 from pydantic import BaseModel, ValidationError
 
 from job_matcher.constants import (
-    APPLICATIONS_FILE,
-    COST_LEDGER_FILE,
     CURRENT_SCHEMA_VERSION,
-    CV_VERSIONS_FILE,
     FILELOCK_TIMEOUT_SECONDS,
     JD_KEYWORDS_FILE,
     JOB_SOURCES_FILE,
     JOBS_FILE,
     LOCK_DIR,
-    MATCH_SCORES_FILE,
 )
 
 logger = logging.getLogger(__name__)
@@ -267,41 +263,99 @@ class JsonStore(Generic[T]):
         return len(self.all())
 
 
-def _make_store(file_path: Path, model: type[T]) -> JsonStore[T]:
-    return JsonStore(file_path=file_path, model=model)
+def _make_store(file_path: Path, model: type[T], lock_dir: Path = LOCK_DIR) -> JsonStore[T]:
+    return JsonStore(file_path=file_path, model=model, lock_dir=lock_dir)
 
 
-def _create_typed_stores() -> tuple[
-    JsonStore, JsonStore, JsonStore, JsonStore, JsonStore, JsonStore, JsonStore
-]:  # type annotations use bare JsonStore; actual types inferred at call sites
-    from job_matcher.models import (
-        Application,
-        CostLedgerEntry,
-        CvVersion,
-        JdKeywords,
-        Job,
-        JobSource,
-        MatchScore,
-    )
+class StoreRegistry:
+    """Lazily creates and caches stores. Shared stores live in DATA_DIR,
+    profile-scoped stores live in DATA_DIR/profiles/<profile>/."""
 
-    return (
-        _make_store(JOBS_FILE, Job),
-        _make_store(JOB_SOURCES_FILE, JobSource),
-        _make_store(CV_VERSIONS_FILE, CvVersion),
-        _make_store(JD_KEYWORDS_FILE, JdKeywords),
-        _make_store(MATCH_SCORES_FILE, MatchScore),
-        _make_store(APPLICATIONS_FILE, Application),
-        _make_store(COST_LEDGER_FILE, CostLedgerEntry),
-    )
+    def __init__(self) -> None:
+        self._stores: dict[str, JsonStore] = {}
+
+    def _get_or_create(
+        self, key: str, file_path: Path, model: type[T], lock_dir: Path = LOCK_DIR
+    ) -> JsonStore[T]:
+        if key not in self._stores:
+            self._stores[key] = _make_store(file_path, model, lock_dir=lock_dir)
+        return self._stores[key]
+
+    def _profile_dir(self) -> Path:
+        from job_matcher.profile import profile_data_dir
+        return profile_data_dir()
+
+    @property
+    def jobs(self) -> "JsonStore":
+        from job_matcher.models import Job
+        return self._get_or_create("jobs", JOBS_FILE, Job)
+
+    @property
+    def sources(self) -> "JsonStore":
+        from job_matcher.models import JobSource
+        return self._get_or_create("sources", JOB_SOURCES_FILE, JobSource)
+
+    @property
+    def jd_keywords(self) -> "JsonStore":
+        from job_matcher.models import JdKeywords
+        return self._get_or_create("jd_keywords", JD_KEYWORDS_FILE, JdKeywords)
+
+    @property
+    def scores(self) -> "JsonStore":
+        from job_matcher.models import MatchScore
+        from job_matcher.profile import get_profile
+        key = f"scores_{get_profile()}"
+        pdir = self._profile_dir()
+        return self._get_or_create(
+            key, pdir / "match_scores.json", MatchScore, lock_dir=pdir / ".locks"
+        )
+
+    @property
+    def cvs(self) -> "JsonStore":
+        from job_matcher.models import CvVersion
+        from job_matcher.profile import get_profile
+        key = f"cvs_{get_profile()}"
+        pdir = self._profile_dir()
+        return self._get_or_create(
+            key, pdir / "cv_versions.json", CvVersion, lock_dir=pdir / ".locks"
+        )
+
+    @property
+    def applications(self) -> "JsonStore":
+        from job_matcher.models import Application
+        from job_matcher.profile import get_profile
+        key = f"applications_{get_profile()}"
+        pdir = self._profile_dir()
+        return self._get_or_create(
+            key, pdir / "applications.json", Application, lock_dir=pdir / ".locks"
+        )
+
+    @property
+    def cost_ledger(self) -> "JsonStore":
+        from job_matcher.models import CostLedgerEntry
+        from job_matcher.profile import get_profile
+        key = f"cost_ledger_{get_profile()}"
+        pdir = self._profile_dir()
+        return self._get_or_create(
+            key, pdir / "cost_ledger.json", CostLedgerEntry, lock_dir=pdir / ".locks"
+        )
 
 
-# Module-level typed store instances
-(
-    jobs_store,
-    sources_store,
-    cvs_store,
-    keywords_store,
-    scores_store,
-    applications_store,
-    cost_store,
-) = _create_typed_stores()
+stores = StoreRegistry()
+
+# Backward-compat aliases so `from job_matcher.storage import scores_store` keeps working.
+_LEGACY_MAP: dict[str, str] = {
+    "jobs_store": "jobs",
+    "sources_store": "sources",
+    "cvs_store": "cvs",
+    "keywords_store": "jd_keywords",
+    "scores_store": "scores",
+    "applications_store": "applications",
+    "cost_store": "cost_ledger",
+}
+
+
+def __getattr__(name: str):  # type: ignore[override]
+    if name in _LEGACY_MAP:
+        return getattr(stores, _LEGACY_MAP[name])
+    raise AttributeError(f"module {__name__!r} has no attribute {name!r}")
