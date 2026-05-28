@@ -11,7 +11,7 @@ on:
 jobs:
   dep-check:
     name: Dependency health
-    runs-on: ubuntu-latest
+    runs-on: ${{ vars.RUNNER || 'ubuntu-latest' }}
     steps:
       - uses: actions/checkout@v4
       - uses: astral-sh/setup-uv@v4
@@ -28,7 +28,7 @@ jobs:
 
   outdated:
     name: Outdated dependencies (informational)
-    runs-on: ubuntu-latest
+    runs-on: ${{ vars.RUNNER || 'ubuntu-latest' }}
     defaults:
       run:
         working-directory: job-matcher
@@ -43,7 +43,7 @@ jobs:
 
   security-scan:
     name: Security scan
-    runs-on: ubuntu-latest
+    runs-on: ${{ vars.RUNNER || 'ubuntu-latest' }}
     steps:
       - uses: actions/checkout@v4
       - uses: astral-sh/setup-uv@v4
